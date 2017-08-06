@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class PairwiseInventoryFactory {
     private static Logger log = LoggerFactory.getLogger(PairwiseInventoryFactory.class);
@@ -17,6 +18,7 @@ public class PairwiseInventoryFactory {
     /**
      * Go through the parameter sets to populate the list of ParameterSets we're going to use. These are the raw materials
      *  from which the test cases will be generated
+     *
      * @param contents The contents of the Scenario you're testing
      * @return The Scenario, fully populated
      */
@@ -28,12 +30,35 @@ public class PairwiseInventoryFactory {
         return scenario;
     }
 
+    public static Scenario generateScenario(Map<String, List<Object>> contents) {
+        Scenario scenario = new Scenario();
+        for (Map.Entry<String, List<Object>> entry : contents.entrySet()) {
+            scenario.addParameterSet(processOneLine(entry));
+        }
+        return scenario;
+    }
+
     /**
      * Parses a String representing the contents of the Scenario, and returns the Scenario
+     *
      * @param contents The contents of the Scenario you're testing
      * @return the Scenario
      */
     public static IInventory generateParameterInventory(String contents) {
+        IInventory inventory = new PairwiseInventory();
+        Scenario scenario = generateScenario(contents);
+        inventory.setScenario(scenario);
+        inventory.buildMolecules();
+        return inventory;
+    }
+
+    /**
+     * Parses the contents of the Map and returns the scenario
+     *
+     * @param contents The contents of the Scenario you're testing
+     * @return the Scenario
+     */
+    public static IInventory generateParameterInventory(Map<String, List<Object>> contents) {
         IInventory inventory = new PairwiseInventory();
         Scenario scenario = generateScenario(contents);
         inventory.setScenario(scenario);
@@ -59,6 +84,7 @@ public class PairwiseInventoryFactory {
 
     /**
      * Processes a single line of inputs
+     *
      * @param line One line, containing one parameter space (e.g. "Title: Value1, Value2, Value3")
      * @return The ParameterSet representing the line
      */
@@ -68,6 +94,12 @@ public class PairwiseInventoryFactory {
         List<String> strValues = splitAndTrim(",", lineTokens[1]);
         ParameterSet<String> parameterSet = new ParameterSet<String>(strValues);
         parameterSet.setName(lineTokens[0]);
+        return parameterSet;
+    }
+
+    private static ParameterSet<?> processOneLine(Map.Entry<String, List<Object>> entry) {
+        ParameterSet parameterSet = new ParameterSet(entry.getValue());
+        parameterSet.setName(entry.getKey());
         return parameterSet;
     }
 

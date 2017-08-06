@@ -12,14 +12,14 @@ public class TestDataSet {
     private IInventory inventory;
     private List<int[]> testSets = new ArrayList<int[]>();
     public List<int[]> getRawTestSets() { return testSets; }
-    
+
     private Random r = new Random(2);
 
     public TestDataSet(IInventory inventory, Scenario scenario) {
         this.inventory = inventory;
         this.scenario = scenario;
     }
-    
+
     public void buildTestCases() {
         int poolSize = 1; // number of candidate testSet arrays to generate before picking one to add to testSets List
         log.debug("Candidate Pool Size: {}", poolSize);
@@ -27,7 +27,7 @@ public class TestDataSet {
             // as long as there are unused pairs to account for
             log.debug("Unused Pair Count: {}", inventory.getUnusedMolecules().size());
             int[][] candidateSets = new int[poolSize][scenario.getParameterSetCount()]; // holds candidate testSets
-    
+
             for (int candidate = 0; candidate < poolSize; ++candidate) {
                 log.debug("Candidate: {}", candidate);
                 int[] testSet = getSingleTestSet();
@@ -41,7 +41,7 @@ public class TestDataSet {
             inventory.updateAllCounts(bestTestSet);
         } //while loop from hell
     }
-    
+
     //This is hard-coded for Strings right now--should be able to refactor the generic back in later
     public List<Map<String, String>> getTestSets() {
         List<int[]> testSetIndexes = getRawTestSets();
@@ -56,28 +56,43 @@ public class TestDataSet {
         }
         return completeDataSet;
     }
-    
+
+    //This is hard-coded for Strings right now--should be able to refactor the generic back in later
+    public List<Map<String, Object>> getTestObjectSets() {
+        List<int[]> testSetIndexes = getRawTestSets();
+        List<Map<String, Object>> completeDataSet = new ArrayList<Map<String, Object>>();
+        for (int[] testSetIndex : testSetIndexes) {
+            Map<String, Object> singleTestSet = new LinkedHashMap<String, Object>();
+            for (int j = 0; j < scenario.getParameterSetCount(); j++) {
+                Object value = scenario.getParameterValues().get(testSetIndex[j]);
+                singleTestSet.put(scenario.getParameterSet(scenario.getParameterPositions()[testSetIndex[j]]).getName(), value);
+            }
+            completeDataSet.add(singleTestSet);
+        }
+        return completeDataSet;
+    }
+
     //It's hard to figure out how to break this up into smaller chunks--everything in inter-dependent
     protected int[] getSingleTestSet() {
         int[] bestMolecule = inventory.getBestMolecule();
-        
+
         int firstPos = scenario.getParameterPositions()[ bestMolecule[0] ];  // position of first parameter set from best unused pair
         int secondPos = scenario.getParameterPositions()[ bestMolecule[1] ]; // position of second parameter set from best unused pair
         log.debug("The best pair belongs at positions {} and {}", firstPos, secondPos);
-        
+
         // place two parameter values from best unused pair into candidate testSet
         int[] testSet = new int[ scenario.getParameterSetCount() ]; // make an empty candidate testSet
         testSet[firstPos] = bestMolecule[0];
         testSet[secondPos] = bestMolecule[1];
 
         int[] ordering = getParameterOrdering(firstPos, secondPos);
-        
+
         // for remaining parameter positions in candidate testSet, try each possible legal value, picking the one which captures the most unused pair
         for (int i = 2; i < scenario.getParameterSetCount(); i++) {
             int currPos = ordering[i];
             int[] possibleValues = scenario.getLegalValues()[currPos];
             logPossibleValues(currPos, possibleValues);
-            
+
             int highestCount = 0;
             int bestJ = 0;
             for (int j=0; j < possibleValues.length; j++) {
@@ -99,13 +114,13 @@ public class TestDataSet {
 
         return testSet;
     }
-    
+
     protected int[] determineBestCandidateSet(int[][] candidateSets) {
         // Iterate through candidateSets to determine the best candidate
         r.setSeed(r.nextLong());
         int indexOfBestCandidate = r.nextInt(candidateSets.length); // pick a random index as best
         int mostPairsCaptured = inventory.numberMoleculesCaptured(candidateSets[indexOfBestCandidate]);
-   
+
         // Determine "best" candidate to use
         for (int i = 0; i < candidateSets.length; ++i) {
             int pairsCaptured = inventory.numberMoleculesCaptured(candidateSets[i]);
@@ -119,22 +134,22 @@ public class TestDataSet {
 
         return candidateSets[indexOfBestCandidate];
     }
-    
+
     protected int[] getParameterOrdering(int firstPos, int secondPos) {
         // generate a random order to fill parameter positions
         int[] ordering = new int[scenario.getLegalValues().length];
         for (int i = 0; i < scenario.getLegalValues().length; i++) { // initially all in order
             ordering[i] = i;
         }
-        
+
         // put firstPos at ordering[0] && secondPos at ordering[1]
         ordering[0] = firstPos;
         ordering[firstPos] = 0;
-   
+
         int t = ordering[1];
         ordering[1] = secondPos;
         ordering[secondPos] = t;
-   
+
         // shuffle ordering[2] thru ordering[last]
         for (int i = 2; i < ordering.length; i++) { // Knuth shuffle. start at i=2 because want first two slots left alone
             int j = r.nextInt(ordering.length - i) + i;
@@ -145,7 +160,7 @@ public class TestDataSet {
         log.debug("Order: {}", Arrays.toString(ordering));
         return ordering;
     }
-    
+
     private void logCandidateTestSet(int[] testSet) {
         log.debug("Adding candidate Test Molecules to candidateSets array: ");
         log.debug("Candidate Test Set (indexes): {}", Arrays.toString(testSet));
@@ -153,14 +168,14 @@ public class TestDataSet {
             log.debug("Candidate Test Set: (parameter {}): {}", i, scenario.getParameterValues().get(testSet[i]));
         }
     }
-    
+
     private void logPossibleValues( int paramSetIndex, int[] possibleValues ) {
         log.debug("Possible values are ");
         for (int z = 0; z < possibleValues.length; z++) {
             log.debug(String.format("%d->%d: %s", paramSetIndex, possibleValues[z], scenario.getParameterValues().get(scenario.getLegalValues()[paramSetIndex][z])));
         }
     }
-    
+
     private void logCandidateTestSets( int[][] candidateSets ) {
         log.debug( "Candidate Test Molecules: " );
         for (int i = 0; i < candidateSets.length; ++i) {
